@@ -354,6 +354,72 @@ class ColaProcessor(DataProcessor):
     return examples
 
 
+class ChABSAProcessor(DataProcessor):
+  """Processor for the ChABSA data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "valid.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+      self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ['negative', 'neutral', 'positive']
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      # Only the test set has a header
+      if set_type == "test" and i == 0:
+        continue
+      guid = "%s-%s" % (set_type, i)
+      if set_type == "test":
+        text_a = tokenization.convert_to_unicode(line[1])
+        label = "neutral"
+      else:
+        text_a = tokenization.convert_to_unicode(line[1])
+        label = tokenization.convert_to_unicode(line[0])
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+    return examples
+
+
+class ChABSA2Processor(ChABSAProcessor):
+  """Processor for the ChABSA data set (GLUE version)."""
+
+  def get_labels(self):
+    """See base class."""
+    return ['business#sales',
+            'business#cost',
+            'product#sales',
+            'product#general',
+            'company#profit',
+            'product#price',
+            'market#general',
+            'business#amount',
+            'company#cost',
+            'company#sales',
+            'product#profit',
+            'company#amount',
+            'company#general',
+            'business#price',
+            'business#general',
+            'product#amount',
+            'business#profit',
+            'product#cost']
+
+
 def convert_single_example(ex_index, example, label_list, max_seq_length,
                            tokenizer):
   """Converts a single `InputExample` into a single `InputFeatures`."""
@@ -747,6 +813,8 @@ def main(_):
       "mnli": MnliProcessor,
       "mrpc": MrpcProcessor,
       "xnli": XnliProcessor,
+      "chabsa": ChABSAProcessor,
+      "chabsa2": ChABSA2Processor,
   }
 
   if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
