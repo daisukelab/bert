@@ -354,8 +354,8 @@ class ColaProcessor(DataProcessor):
     return examples
 
 
-class ChABSAProcessor(DataProcessor):
-  """Processor for the ChABSA data set (GLUE version)."""
+class GenericLabeledTextProcessor(DataProcessor):
+  """Processor for 'label(tab)text' data set."""
 
   def get_train_examples(self, data_dir):
     """See base class."""
@@ -374,11 +374,12 @@ class ChABSAProcessor(DataProcessor):
 
   def get_labels(self):
     """See base class."""
-    return ['negative', 'neutral', 'positive']
+    return self.labels
 
   def _create_examples(self, lines, set_type):
     """Creates examples for the training and dev sets."""
     examples = []
+    labels = []
     for (i, line) in enumerate(lines):
       # Only the test set has a header
       if set_type == "test" and i == 0:
@@ -390,34 +391,11 @@ class ChABSAProcessor(DataProcessor):
       else:
         text_a = tokenization.convert_to_unicode(line[1])
         label = tokenization.convert_to_unicode(line[0])
+      labels.append(label)
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+    self.labels = sorted(list(set(labels)))
     return examples
-
-
-class ChABSA2Processor(ChABSAProcessor):
-  """Processor for the ChABSA data set (GLUE version)."""
-
-  def get_labels(self):
-    """See base class."""
-    return ['business#sales',
-            'business#cost',
-            'product#sales',
-            'product#general',
-            'company#profit',
-            'product#price',
-            'market#general',
-            'business#amount',
-            'company#cost',
-            'company#sales',
-            'product#profit',
-            'company#amount',
-            'company#general',
-            'business#price',
-            'business#general',
-            'product#amount',
-            'business#profit',
-            'product#cost']
 
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,
@@ -813,8 +791,7 @@ def main(_):
       "mnli": MnliProcessor,
       "mrpc": MrpcProcessor,
       "xnli": XnliProcessor,
-      "chabsa": ChABSAProcessor,
-      "chabsa2": ChABSA2Processor,
+      "generic": GenericLabeledTextProcessor,
   }
 
   if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
@@ -837,8 +814,6 @@ def main(_):
     raise ValueError("Task not found: %s" % (task_name))
 
   processor = processors[task_name]()
-
-  label_list = processor.get_labels()
 
   tokenizer = tokenization.FullTokenizer(
       vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
@@ -867,6 +842,8 @@ def main(_):
     num_train_steps = int(
         len(train_examples) / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
+
+  label_list = processor.get_labels()
 
   model_fn = model_fn_builder(
       bert_config=bert_config,
